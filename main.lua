@@ -1,70 +1,41 @@
--- [[ CITRUS HUB | GITHUB VERSION ]] --
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+-- [[ CITRUS HUB - KAVO EDITION (STABLE) ]] --
+local KavoLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = KavoLib.CreateLib("CITRUS HUB 🍋", "DarkTheme")
 
--- Создание окна
-local Window = OrionLib:MakeWindow({
-    Name = "CITRUS HUB 🍋", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    IntroText = "CITRUS HUB BY CITRUS",
-    ConfigFolder = "CitrusHub_GitHub"
-})
+-- Вкладка Ключа
+local AuthTab = Window:NewTab("Ключ (Key)")
+local AuthSection = AuthTab:NewSection("Введите ключ доступа")
 
--- Вкладка авторизации
-local Auth = Window:MakeTab({
-    Name = "Ключ (Key)",
-    Icon = "rbxassetid://4483345998"
-})
-
-Auth:AddTextbox({
-    Name = "Введите ключ",
-    Default = "",
-    TextDisappear = true,
-    Callback = function(Value)
-        if Value == "chub7dayfree" then
-            OrionLib:MakeNotification({
-                Name = "Доступ разрешен!",
-                Content = "Добро пожаловать, Citrus!",
-                Time = 5
-            })
-        end
-    end	  
-})
-
--- Вкладка функций
-local Main = Window:MakeTab({
-    Name = "Функции (Main)",
-    Icon = "rbxassetid://4483345998"
-})
-
-Main:AddButton({
-    Name = "🚀 АКТИВИРОВАТЬ FLY (ПОЛЕТ)",
-    Callback = function()
-        -- Загрузка лучшего Fly GUI для мобильных
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.lua"))()
+AuthSection:NewTextBox("Ключ", "Введите тут", function(text)
+    if text == "chub7dayfree" then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "CITRUS HUB",
+            Text = "Доступ разрешен!",
+            Duration = 5
+        })
     end
-})
+end)
 
-Main:AddSlider({
-    Name = "Угол обзора (FOV)",
-    Min = 70, Max = 120, Default = 80,
-    Color = Color3.fromRGB(255, 255, 0),
-    Increment = 1,
-    ValueName = "FOV",
-    Callback = function(Value)
-        game.Workspace.CurrentCamera.FieldOfView = Value
-    end    
-})
+-- Вкладка Полета
+local FlyTab = Window:NewTab("Полет (Fly)")
+local FlySection = FlyTab:NewSection("Управление полетом")
 
--- Вкладка информации
-local Info = Window:MakeTab({
-    Name = "Информация",
-    Icon = "rbxassetid://4483345998"
-})
+FlySection:NewButton("🚀 ЗАПУСТИТЬ FLY GUI", "Появится меню управления полетом", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.lua"))()
+end)
 
-Info:AddParagraph("Проект:","CITRUS HUB")
-Info:AddParagraph("Автор:","Citrus")
-Info:AddParagraph("Хостинг:","GitHub (kowboy77945-art)")
-Info:AddParagraph("Ключ:","chub7dayfree")
+-- Вкладка Визуал
+local VisualTab = Window:NewTab("Визуал")
+local VisualSection = VisualTab:NewSection("Настройки камеры")
 
-OrionLib:Init()
+VisualSection:NewSlider("Угол обзора (FOV)", "Меняет дальность зрения", 120, 70, function(s)
+    game.Workspace.CurrentCamera.FieldOfView = s
+end)
+
+-- Инфо
+local InfoTab = Window:NewTab("Инфо")
+local InfoSection = InfoTab:NewSection("Автор: Citrus")
+InfoSection:NewLabel("Ключ: chub7dayfree")
+InfoSection:NewLabel("Версия: 1.2 (Stable)")
+
+-- Кнопка закрытия/открытия меню (обычно справа сверху)
