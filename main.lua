@@ -1,157 +1,153 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "CITRUS HUB 🍋 | PRO VERSION",
-   LoadingTitle = "Загрузка CITRUS HUB...",
+   Name = "CITRUS HUB 🍋 | ELITE",
+   LoadingTitle = "Загрузка...",
    LoadingSubtitle = "by Citrus",
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = "CitrusHub",
-      FileName = "Main"
-   },
+   ConfigurationSaving = { Enabled = false },
    KeySystem = true,
    KeySettings = {
-      Title = "CITRUS HUB | Ключ",
-      Subtitle = "Введите ключ доступа",
-      Note = "Ключ можно получить у автора (chub7dayfree)",
+      Title = "CITRUS HUB",
+      Subtitle = "Авторизация",
+      Note = "Введите ваш персональный доступ",
       FileName = "CitrusKey",
       SaveKey = true,
       GrabKeyFromSite = false,
-      Key = {"chub7dayfree"} -- Твой ключ
+      Key = {"chub7dayfree"} -- Твой секретный ключ
    }
 })
 
--- Переменные
+-- Переменные управления
 local Player = game.Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = Player:GetMouse()
-local FlySpeed = 50
-local Flying = false
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
--- ВКЛАДКА: ГЛАВНАЯ (FLY & SPEED)
+local Vars = {
+    FlySpeed = 50,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    Flying = false,
+    SilentAim = false,
+    InfJump = false
+}
+
+-- ГЛАВНАЯ ВКЛАДКА (ДВИЖЕНИЕ)
 local MainTab = Window:CreateTab("Игрок", 4483362458)
 
 MainTab:CreateToggle({
-   Name = "Fly (Полет по камере)",
+   Name = "Fly (Стабильный полет)",
    CurrentValue = false,
-   Flag = "FlyToggle",
    Callback = function(Value)
-      Flying = Value
+      Vars.Flying = Value
       local char = Player.Character or Player.CharacterAdded:Wait()
       local root = char:WaitForChild("HumanoidRootPart")
-      local hum = char:WaitForChild("Humanoid")
       
-      if Flying then
-         local bv = Instance.new("BodyVelocity", root)
-         bv.Name = "CitrusFly"
-         bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-         bv.Velocity = Vector3.new(0,0,0)
-         
-         task.spawn(function()
-            while Flying do
-               -- Управление через направление камеры и джойстик
-               bv.Velocity = Camera.CFrame.LookVector * (hum.MoveDirection.Magnitude > 0 and FlySpeed or 0)
-               if hum.MoveDirection.Magnitude > 0 then
-                   bv.Velocity = Camera.CFrame:VectorToWorldSpace(Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z).Unit * FlySpeed)
-               else
-                   bv.Velocity = Vector3.new(0,0,0)
-               end
-               task.wait()
-            end
-            bv:Destroy()
-         end)
+      if Vars.Flying then
+          local bv = Instance.new("BodyVelocity", root)
+          bv.Name = "CitrusFlyVelocity"
+          bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+          bv.Velocity = Vector3.new(0,0,0)
+          
+          task.spawn(function()
+              while Vars.Flying do
+                  local hum = char:FindFirstChildOfClass("Humanoid")
+                  if hum and hum.MoveDirection.Magnitude > 0 then
+                      -- Летим туда, куда смотрит камера + джойстик
+                      bv.Velocity = Camera.CFrame:VectorToWorldSpace(Vector3.new(hum.MoveDirection.X, hum.MoveDirection.Y, hum.MoveDirection.Z) * 1).Unit * Vars.FlySpeed
+                  else
+                      bv.Velocity = Vector3.new(0, 0, 0) -- Замираем, если не трогаем джойстик
+                  end
+                  task.wait()
+              end
+              bv:Destroy()
+          end)
       end
    end,
 })
 
 MainTab:CreateSlider({
-   Name = "Скорость Полета/Бега",
-   Range = {16, 300},
-   Increment = 1,
+   Name = "Скорость (Fly/Run)",
+   Range = {16, 500},
+   Increment = 5,
    CurrentValue = 50,
    Callback = function(Value)
-      FlySpeed = Value
-      Player.Character.Humanoid.WalkSpeed = Value
+      Vars.FlySpeed = Value
+      if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+          Player.Character.Humanoid.WalkSpeed = Value
+      end
    end,
 })
 
--- ВКЛАДКА: COMBAT (SILENT AIM)
+MainTab:CreateToggle({
+   Name = "Infinite Jump (Прыжки спамом)",
+   CurrentValue = false,
+   Callback = function(Value)
+      Vars.InfJump = Value
+   end,
+})
+
+-- Обработка бесконечного прыжка
+UserInputService.JumpRequest:Connect(function()
+    if Vars.InfJump and Player.Character then
+        Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+    end
+end)
+
+-- ВКЛАДКА БОЙ (SILENT AIM)
 local CombatTab = Window:CreateTab("Бой", 4483362458)
 
 CombatTab:CreateToggle({
-   Name = "Silent Aim (Ближний игрок)",
+   Name = "Silent Aim (Улучшенный)",
    CurrentValue = false,
    Callback = function(Value)
-      _G.SilentAim = Value
+      Vars.SilentAim = Value
+      
       task.spawn(function()
-         while _G.SilentAim do
-            local target = nil
-            local dist = math.huge
-            for _, v in pairs(game.Players:GetPlayers()) do
-               if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                  local screenPos, onScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
-                  if onScreen then
-                     local mag = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                     if mag < dist then
-                        target = v
-                        dist = mag
-                     end
+          while Vars.SilentAim do
+              local target = nil
+              local shortestMouseDist = math.huge
+              
+              for _, v in pairs(game.Players:GetPlayers()) do
+                  if v ~= Player and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+                      local pos, onScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+                      if onScreen then
+                          local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                          if mouseDist < shortestMouseDist then
+                              target = v
+                              shortestMouseDist = mouseDist
+                          end
+                      end
                   end
-               end
-            end
-            if target then
-                -- Эмуляция Silent Aim через направление взгляда в сторону цели
-               Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
-            end
-            task.wait()
-         end
+              end
+              
+              if target then
+                  -- Магия Silent Aim: пули летят в цель (коррекция камеры)
+                  local aimPart = target.Character:FindFirstChild("Head") or target.Character.HumanoidRootPart
+                  Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPart.Position)
+              end
+              task.wait(0.01) -- Частота проверки для плавной наводки
+          end
       end)
    end,
 })
 
--- ВКЛАДКА: VISUALS (ESP)
-local VisualsTab = Window:CreateTab("Визуалы", 4483362458)
+-- ВКЛАДКА ВИЗУАЛЫ
+local VisualTab = Window:CreateTab("Визуалы", 4483362458)
 
-VisualsTab:CreateButton({
-   Name = "Включить ESP (Boxes)",
+VisualTab:CreateButton({
+   Name = "ESP: Подсветка целей",
    Callback = function()
-      -- Простой ESP
       for _, v in pairs(game.Players:GetPlayers()) do
           if v ~= Player and v.Character then
-              local highlight = Instance.new("Highlight", v.Character)
-              highlight.FillColor = Color3.fromRGB(255, 165, 0)
-              highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+              local h = v.Character:FindFirstChild("CitrusESP") or Instance.new("Highlight", v.Character)
+              h.Name = "CitrusESP"
+              h.FillColor = Color3.fromRGB(255, 0, 0)
+              h.OutlineColor = Color3.fromRGB(255, 255, 255)
+              h.FillTransparency = 0.5
           end
       end
-      Rayfield:Notify({Title = "ESP", Content = "Подсветка игроков включена", Duration = 3})
    end,
 })
 
--- ВКЛАДКА: MISC (ДРУГОЕ)
-local MiscTab = Window:CreateTab("Разное", 4483362458)
-
-MiscTab:CreateButton({
-   Name = "Infinite Jump (Бесконечный прыжок)",
-   Callback = function()
-      game:GetService("UserInputService").JumpRequest:Connect(function()
-          Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-      end)
-   end,
-})
-
-MiscTab:CreateToggle({
-   Name = "NoClip (Сквозь стены)",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.NoClip = Value
-      game:GetService("RunService").Stepped:Connect(function()
-          if _G.NoClip then
-              for _, part in pairs(Player.Character:GetDescendants()) do
-                  if part:IsA("BasePart") then part.CanCollide = false end
-              end
-          end
-      end)
-   end,
-})
-
-Rayfield:Notify({Title = "CITRUS HUB", Content = "Скрипт успешно загружен!", Duration = 5})
+Rayfield:Notify({Title = "Запуск", Content = "CITRUS HUB готов к работе!", Duration = 3})
