@@ -1,4 +1,4 @@
--- [[ CITRUS HUB - STABLE FLY VERSION ]] --
+-- [[ CITRUS HUB | GITHUB VERSION ]] --
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
 -- Создание окна
@@ -7,7 +7,7 @@ local Window = OrionLib:MakeWindow({
     HidePremium = false, 
     SaveConfig = true, 
     IntroText = "CITRUS HUB BY CITRUS",
-    ConfigFolder = "CitrusFly"
+    ConfigFolder = "CitrusHub_GitHub"
 })
 
 -- Вкладка авторизации
@@ -24,37 +24,47 @@ Auth:AddTextbox({
         if Value == "chub7dayfree" then
             OrionLib:MakeNotification({
                 Name = "Доступ разрешен!",
-                Content = "Приятного полета, Citrus!",
+                Content = "Добро пожаловать, Citrus!",
                 Time = 5
             })
         end
     end	  
 })
 
--- Вкладка только для Полета
+-- Вкладка функций
 local Main = Window:MakeTab({
-    Name = "Полет (Fly)",
+    Name = "Функции (Main)",
     Icon = "rbxassetid://4483345998"
 })
 
 Main:AddButton({
-    Name = "🚀 АКТИВИРОВАТЬ FLY GUI",
+    Name = "🚀 АКТИВИРОВАТЬ FLY (ПОЛЕТ)",
     Callback = function()
-        -- Запуск лучшего мобильного Fly
+        -- Загрузка лучшего Fly GUI для мобильных
         loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.lua"))()
     end
 })
 
-Main:AddParagraph("Инфо","Нажми на кнопку выше, и на экране появятся кнопки управления полетом.")
+Main:AddSlider({
+    Name = "Угол обзора (FOV)",
+    Min = 70, Max = 120, Default = 80,
+    Color = Color3.fromRGB(255, 255, 0),
+    Increment = 1,
+    ValueName = "FOV",
+    Callback = function(Value)
+        game.Workspace.CurrentCamera.FieldOfView = Value
+    end    
+})
 
--- Вкладка инфо
+-- Вкладка информации
 local Info = Window:MakeTab({
     Name = "Информация",
     Icon = "rbxassetid://4483345998"
 })
 
-Info:AddParagraph("Название:","CITRUS HUB")
-Info:AddParagraph("Версия:","1.0 (Fly Edition)")
+Info:AddParagraph("Проект:","CITRUS HUB")
+Info:AddParagraph("Автор:","Citrus")
+Info:AddParagraph("Хостинг:","GitHub (kowboy77945-art)")
 Info:AddParagraph("Ключ:","chub7dayfree")
 
 OrionLib:Init()
