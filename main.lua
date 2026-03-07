@@ -1,8 +1,8 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "CITRUS HUB 🍋 | ELITE V3",
-   LoadingTitle = "Запуск системы CITRUS...",
+   Name = "CITRUS HUB 🍋 | ELITE V4",
+   LoadingTitle = "Загрузка Elite Системы...",
    LoadingSubtitle = "by Citrus",
    KeySystem = true,
    KeySettings = {
@@ -15,23 +15,25 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
--- Настройки
+-- Настройки и переменные
 local Player = game.Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = Player:GetMouse()
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = {
     SilentAim = false,
-    Aimbot = false,
-    FovRadius = 150,
+    SilentFov = 150,
     ShowFov = true,
+    WallShot = false, -- Стрельба сквозь стены
     FlySpeed = 50,
-    Flying = false
+    Flying = false,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    InfJump = false
 }
 
--- Создание круга FOV (Исправленный метод для DeltaX)
+-- Визуальный круг FOV
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
 FOVCircle.NumSides = 60
@@ -41,24 +43,33 @@ FOVCircle.Color = Color3.fromRGB(255, 255, 0)
 
 RunService.RenderStepped:Connect(function()
     FOVCircle.Visible = Config.ShowFov
-    FOVCircle.Radius = Config.FovRadius
+    FOVCircle.Radius = Config.SilentFov
     FOVCircle.Position = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
 end)
 
--- Функция поиска цели
+-- Функция поиска цели для Сайлента
 local function GetClosestTarget()
     local target = nil
-    local dist = Config.FovRadius
+    local dist = Config.SilentFov
 
     for _, v in pairs(game.Players:GetPlayers()) do
-        if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+        if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character.Humanoid.Health > 0 then
             local pos, onScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
             if onScreen then
-                local mousePos = UserInputService:GetMouseLocation()
-                local mag = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                local mag = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
                 if mag < dist then
-                    target = v
-                    dist = mag
+                    -- Проверка видимости (если WallShot выключен)
+                    if not Config.WallShot then
+                        local ray = Ray.new(Camera.CFrame.Position, (v.Character.HumanoidRootPart.Position - Camera.CFrame.Position).Unit * 500)
+                        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {Player.Character})
+                        if hit and hit:IsDescendantOf(v.Character) then
+                            target = v
+                            dist = mag
+                        end
+                    else
+                        target = v
+                        dist = mag
+                    end
                 end
             end
         end
@@ -66,11 +77,11 @@ local function GetClosestTarget()
     return target
 end
 
--- ВКЛАДКА COMBAT
+-- ВКЛАДКА COMBAT (БОЙ)
 local CombatTab = Window:CreateTab("Бой", 4483362458)
 
 CombatTab:CreateToggle({
-   Name = "Silent Aim (Магнит попаданий)",
+   Name = "Silent Aim (Попадание сбоку)",
    CurrentValue = false,
    Callback = function(Value)
       Config.SilentAim = Value
@@ -79,7 +90,7 @@ CombatTab:CreateToggle({
               if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
                   local target = GetClosestTarget()
                   if target then
-                      -- Мгновенная микро-коррекция для попадания
+                      -- Направляем "пули" (камеру) на цель только в момент клика
                       local aimPart = target.Character:FindFirstChild("Head") or target.Character.HumanoidRootPart
                       Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPart.Position)
                   end
@@ -90,41 +101,44 @@ CombatTab:CreateToggle({
    end,
 })
 
+CombatTab:CreateToggle({
+   Name = "WallShot (Стрельба сквозь стены)",
+   CurrentValue = false,
+   Callback = function(Value) Config.WallShot = Value end,
+})
+
 CombatTab:CreateSlider({
-   Name = "Радиус Silent FOV",
+   Name = "Silent FOV (Радиус)",
    Range = {50, 800},
    Increment = 10,
    CurrentValue = 150,
-   Callback = function(v) Config.FovRadius = v end,
+   Callback = function(v) Config.SilentFov = v end,
 })
 
 CombatTab:CreateToggle({
-   Name = "Показывать Круг",
+   Name = "Показывать Круг FOV",
    CurrentValue = true,
    Callback = function(v) Config.ShowFov = v end,
 })
 
--- ВКЛАДКА PLAYER (FLY)
+-- ВКЛАДКА PLAYER (ДВИЖЕНИЕ)
 local PlayerTab = Window:CreateTab("Игрок", 4483362458)
 
 PlayerTab:CreateToggle({
-   Name = "Улучшенный Fly",
+   Name = "Улучшенный Fly (Джойстик)",
    CurrentValue = false,
    Callback = function(Value)
       Config.Flying = Value
-      local root = Player.Character:WaitForChild("HumanoidRootPart")
+      local char = Player.Character
+      local root = char:WaitForChild("HumanoidRootPart")
       if Config.Flying then
           local bv = Instance.new("BodyVelocity", root)
-          bv.Name = "CitrusStableFly"
           bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-          
           task.spawn(function()
               while Config.Flying do
-                  local hum = Player.Character:FindFirstChildOfClass("Humanoid")
-                  local dir = hum.MoveDirection
-                  if dir.Magnitude > 0 then
-                      bv.Velocity = Camera.CFrame:VectorToWorldSpace(Vector3.new(dir.X, 0, dir.Z)).Unit * Config.FlySpeed
-                      -- Добавляем подъем/спуск по взгляду камеры
+                  local hum = char:FindFirstChildOfClass("Humanoid")
+                  if hum.MoveDirection.Magnitude > 0 then
+                      bv.Velocity = Camera.CFrame:VectorToWorldSpace(Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)).Unit * Config.FlySpeed
                       bv.Velocity = bv.Velocity + Vector3.new(0, Camera.CFrame.LookVector.Y * Config.FlySpeed, 0)
                   else
                       bv.Velocity = Vector3.new(0, 0, 0)
@@ -138,35 +152,38 @@ PlayerTab:CreateToggle({
 })
 
 PlayerTab:CreateSlider({
-   Name = "Скорость Полета",
-   Range = {16, 500},
-   Increment = 10,
-   CurrentValue = 50,
-   Callback = function(v) Config.FlySpeed = v end,
+   Name = "Speed (Скорость)",
+   Range = {16, 300},
+   Increment = 5,
+   CurrentValue = 16,
+   Callback = function(v) Player.Character.Humanoid.WalkSpeed = v end,
 })
 
-PlayerTab:CreateButton({
-   Name = "Infinite Jump (Вкл навсегда)",
-   Callback = function()
-       UserInputService.JumpRequest:Connect(function()
-           Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-       end)
-   end,
+PlayerTab:CreateToggle({
+   Name = "Infinity Jump",
+   CurrentValue = false,
+   Callback = function(v) Config.InfJump = v end,
 })
 
--- ВКЛАДКА VISUALS
+UserInputService.JumpRequest:Connect(function()
+    if Config.InfJump then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping") end
+end)
+
+-- ВКЛАДКА VISUALS (ESP)
 local VisualTab = Window:CreateTab("Визуалы", 4483362458)
+
 VisualTab:CreateButton({
-   Name = "Включить ESP (Подсветка)",
+   Name = "Включить ESP",
    Callback = function()
       for _, v in pairs(game.Players:GetPlayers()) do
           if v ~= Player and v.Character then
               local h = v.Character:FindFirstChild("Highlight") or Instance.new("Highlight", v.Character)
               h.FillColor = Color3.fromRGB(255, 0, 0)
               h.OutlineColor = Color3.fromRGB(255, 255, 255)
+              h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Видно сквозь стены
           end
       end
    end,
 })
 
-Rayfield:Notify({Title = "CITRUS HUB", Content = "Система обновлена и готова!", Duration = 5})
+Rayfield:Notify({Title = "CITRUS HUB", Content = "Elite v4 успешно загружен!", Duration = 5})
