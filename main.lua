@@ -1,13 +1,13 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "CITRUS HUB 🍋 | FINAL ELITE",
-   LoadingTitle = "Загрузка чита...",
+   Name = "CITRUS HUB 🍋 | GOD EDITION",
+   LoadingTitle = "Активация протокола AimKill...",
    LoadingSubtitle = "by Citrus",
    KeySystem = false,
    KeySettings = {
-      Title = "CITRUS HUB",
-      Subtitle = "Авторизация",
+      Title = "CITRUS HUB | ACCESS",
+      Subtitle = "Введите ключ",
       Note = "Ключ: chub7dayfree",
       FileName = "CitrusKey",
       SaveKey = true,
@@ -15,103 +15,70 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
--- Переменные
+-- ПЕРЕМЕННЫЕ
 local Player = game.Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = Player:GetMouse()
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = {
+    AimKill = false,
     SilentAim = false,
-    SilentRadius = 300,
-    FlySpeed = 50,
-    Flying = false,
-    InfJump = false
+    FlySpeed = 100,
+    KillRadius = 2000, -- Радиус в котором он ищет жертв
+    Height = 50 -- Высота взлета для AimKill
 }
 
--- Функция поиска цели (самый стабильный метод)
-local function GetTarget()
-    local closestTarget = nil
-    local maxDist = Config.SilentRadius
+-- Функция поиска ближайшей жертвы
+local function GetNearestVictim()
+    local target = nil
+    local shortestDist = Config.KillRadius
 
     for _, v in pairs(game.Players:GetPlayers()) do
         if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character.Humanoid.Health > 0 then
-            local pos, onScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
-            if onScreen then
-                local distance = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
-                if distance < maxDist then
-                    closestTarget = v
-                    maxDist = distance
-                end
+            local dist = (v.Character.HumanoidRootPart.Position - Player.Character.HumanoidRootPart.Position).Magnitude
+            if dist < shortestDist then
+                target = v
+                shortestDist = dist
             end
         end
     end
-    return closestTarget
+    return target
 end
 
--- ВКЛАДКА COMBAT (БОЙ)
-local CombatTab = Window:CreateTab("Бой", 4483362458)
+-- ВКЛАДКА: RAGE (УНИЧТОЖЕНИЕ)
+local RageTab = Window:CreateTab("Rage 🔥", 4483362458)
 
-CombatTab:CreateToggle({
-   Name = "Silent Aim (Попадание рядом)",
+RageTab:CreateToggle({
+   Name = "AimKill (Авто-убийство всех)",
    CurrentValue = false,
    Callback = function(Value)
-      Config.SilentAim = Value
-      
-      -- Основной цикл Сайлент Аима
-      task.spawn(function()
-          while Config.SilentAim do
-              -- Если игрок нажимает на экран (стреляет)
-              if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                  local target = GetTarget()
-                  if target then
-                      -- Направляем "невидимый" луч в голову противника
-                      local aimPart = target.Character:FindFirstChild("Head") or target.Character.HumanoidRootPart
-                      -- Микро-коррекция для регистрации урона игрой
-                      Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPart.Position)
-                  end
-              end
-              task.wait(0.02) -- Оптимальная задержка, чтобы не лагало и не блокировало кнопку
-          end
-      end)
-   end,
-})
-
-CombatTab:CreateSlider({
-   Name = "Радиус захвата (Silent FOV)",
-   Range = {50, 1000},
-   Increment = 10,
-   CurrentValue = 300,
-   Callback = function(v) Config.SilentRadius = v end,
-})
-
--- ВКЛАДКА ДВИЖЕНИЕ
-local PlayerTab = Window:CreateTab("Игрок", 4483362458)
-
-PlayerTab:CreateToggle({
-   Name = "Fly (Полет по камере)",
-   CurrentValue = false,
-   Callback = function(Value)
-      Config.Flying = Value
-      local char = Player.Character
+      Config.AimKill = Value
+      local char = Player.Character or Player.CharacterAdded:Wait()
       local root = char:WaitForChild("HumanoidRootPart")
       
-      if Config.Flying then
+      if Config.AimKill then
+          -- Взлет в небо
+          root.CFrame = root.CFrame * CFrame.new(0, Config.Height, 0)
           local bv = Instance.new("BodyVelocity", root)
-          bv.Name = "CitrusFlyFinal"
+          bv.Name = "AimKillFly"
           bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-          
+          bv.Velocity = Vector3.new(0, 0, 0)
+
           task.spawn(function()
-              while Config.Flying do
-                  local hum = char:FindFirstChildOfClass("Humanoid")
-                  if hum and hum.MoveDirection.Magnitude > 0 then
-                      -- Летит туда, куда смотришь
-                      bv.Velocity = Camera.CFrame:VectorToWorldSpace(Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)).Unit * Config.FlySpeed
-                      bv.Velocity = bv.Velocity + Vector3.new(0, Camera.CFrame.LookVector.Y * Config.FlySpeed, 0)
-                  else
-                      bv.Velocity = Vector3.new(0, 0, 0)
+              while Config.AimKill do
+                  local victim = GetNearestVictim()
+                  if victim then
+                      -- Наводка камеры на жертву
+                      local aimPart = victim.Character:FindFirstChild("Head") or victim.Character.HumanoidRootPart
+                      Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPart.Position)
+                      
+                      -- Эмуляция стрельбы (MouseButton1)
+                      game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                      task.wait(0.05) -- Скорость стрельбы
+                      game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
                   end
-                  task.wait()
+                  task.wait(0.01)
               end
               bv:Destroy()
           end)
@@ -119,32 +86,46 @@ PlayerTab:CreateToggle({
    end,
 })
 
-PlayerTab:CreateSlider({
-   Name = "Скорость (Speed)",
-   Range = {16, 500},
-   Increment = 5,
-   CurrentValue = 16,
-   Callback = function(v) 
-      Config.FlySpeed = v 
-      if Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = v end
-   end,
+RageTab:CreateSlider({
+   Name = "Высота взлета AimKill",
+   Range = {10, 200},
+   Increment = 10,
+   CurrentValue = 50,
+   Callback = function(v) Config.Height = v end,
 })
 
-PlayerTab:CreateToggle({
-   Name = "Infinity Jump",
+-- ВКЛАДКА: LEGIT (ДЛЯ ОБЫЧНОЙ ИГРЫ)
+local LegitTab = Window:CreateTab("Legit 🎯", 4483362458)
+
+LegitTab:CreateToggle({
+   Name = "Silent Aim (Попадание рядом)",
    CurrentValue = false,
-   Callback = function(v) Config.InfJump = v end,
+   Callback = function(v) Config.SilentAim = v end,
 })
 
-UserInputService.JumpRequest:Connect(function()
-    if Config.InfJump then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping") end
+-- Логика Silent Aim
+RunService.RenderStepped:Connect(function()
+    if Config.SilentAim and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+        local target = GetNearestVictim()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
+        end
+    end
 end)
 
--- ВКЛАДКА ВИЗУАЛЫ
-local VisualTab = Window:CreateTab("Визуалы", 4483362458)
+-- ВКЛАДКА: PLAYER
+local PlayerTab = Window:CreateTab("Игрок", 4483362458)
 
-VisualTab:CreateButton({
-   Name = "ESP (Подсветка игроков)",
+PlayerTab:CreateSlider({
+   Name = "Speed / Скорость",
+   Range = {16, 500},
+   Increment = 10,
+   CurrentValue = 16,
+   Callback = function(v) Player.Character.Humanoid.WalkSpeed = v end,
+})
+
+PlayerTab:CreateButton({
+   Name = "Включить ESP",
    Callback = function()
       for _, v in pairs(game.Players:GetPlayers()) do
           if v ~= Player and v.Character then
@@ -156,4 +137,4 @@ VisualTab:CreateButton({
    end,
 })
 
-Rayfield:Notify({Title = "CITRUS HUB", Content = "Всё готово! Приятной игры!", Duration = 5})
+Rayfield:Notify({Title = "CITRUS HUB", Content = "AimKill Система активирована!", Duration = 5})
