@@ -1,8 +1,8 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "CITRUS HUB 🍋 | PRIVATE",
-   LoadingTitle = "Загрузка секретных модулей...",
+   Name = "CITRUS HUB 🍋 | GOD MODE",
+   LoadingTitle = "Загрузка Silent Engine...",
    LoadingSubtitle = "by Citrus",
    KeySystem = true,
    KeySettings = {
@@ -15,33 +15,30 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
--- Переменные
+-- ПЕРЕМЕННЫЕ
 local Player = game.Players.LocalPlayer
-local Camera = workspace.CurrentCamera
 local Mouse = Player:GetMouse()
-local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
 
 local Config = {
     SilentAim = false,
-    SilentDistance = 300, -- Радиус в пикселях (невидимый)
+    FovRadius = 300,
     WallShot = false,
     FlySpeed = 50,
-    WalkSpeed = 16,
-    JumpPower = 50,
-    InfJump = false,
-    Flying = false
+    Flying = false,
+    InfJump = false
 }
 
--- Функция поиска цели для Silent Aim (невидимая область)
-local function GetClosestToMouse()
+-- ФУНКЦИЯ ПОИСКА БЛИЖАЙШЕЙ ЦЕЛИ
+local function GetClosestTarget()
     local target = nil
-    local shortestDistance = Config.SilentDistance
+    local shortestDistance = Config.FovRadius
 
     for _, v in pairs(game.Players:GetPlayers()) do
         if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character.Humanoid.Health > 0 then
             local pos, onScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
             if onScreen then
-                local distance = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
                 if distance < shortestDistance then
                     target = v
                     shortestDistance = distance
@@ -52,49 +49,49 @@ local function GetClosestToMouse()
     return target
 end
 
--- ВКЛАДКА COMBAT (БОЙ)
+-- ЛОГИКА SILENT AIM (HOOKING)
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    if Config.SilentAim and method == "FindPartOnRayWithIgnoreList" or method == "Raycast" then
+        local target = GetClosestTarget()
+        if target then
+            -- Если стреляем, подменяем направление пули на цель
+            return oldNamecall(self, Ray.new(Camera.CFrame.Position, (target.Character.HumanoidRootPart.Position - Camera.CFrame.Position).Unit * 1000), args[2])
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+
+setreadonly(mt, true)
+
+-- ВКЛАДКА БОЙ
 local CombatTab = Window:CreateTab("Бой", 4483362458)
 
 CombatTab:CreateToggle({
-   Name = "Silent Aim (Попадание сбоку)",
+   Name = "True Silent Aim (Без доводки камеры)",
    CurrentValue = false,
-   Callback = function(Value)
-      Config.SilentAim = Value
-      task.spawn(function()
-          while Config.SilentAim do
-              if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                  local target = GetClosestToMouse()
-                  if target then
-                      -- Направляем вектор выстрела прямо в цель
-                      local aimPart = target.Character:FindFirstChild("Head") or target.Character.HumanoidRootPart
-                      Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPart.Position)
-                  end
-              end
-              task.wait(0.01)
-          end
-      end)
-   end,
+   Callback = function(Value) Config.SilentAim = Value end,
 })
 
 CombatTab:CreateSlider({
-   Name = "Радиус захвата Silent (FOV)",
+   Name = "Радиус попадания (FOV)",
    Range = {50, 1000},
    Increment = 10,
    CurrentValue = 300,
-   Callback = function(v) Config.SilentDistance = v end,
+   Callback = function(v) Config.FovRadius = v end,
 })
 
-CombatTab:CreateToggle({
-   Name = "Стрельба сквозь стены",
-   CurrentValue = false,
-   Callback = function(v) Config.WallShot = v end,
-})
-
--- ВКЛАДКА PLAYER (ДВИЖЕНИЕ)
+-- ВКЛАДКА ИГРОК
 local PlayerTab = Window:CreateTab("Игрок", 4483362458)
 
 PlayerTab:CreateToggle({
-   Name = "Fly (Полет за камерой)",
+   Name = "Идеальный Fly (Джойстик)",
    CurrentValue = false,
    Callback = function(Value)
       Config.Flying = Value
@@ -110,7 +107,7 @@ PlayerTab:CreateToggle({
                       bv.Velocity = Camera.CFrame:VectorToWorldSpace(Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)).Unit * Config.FlySpeed
                       bv.Velocity = bv.Velocity + Vector3.new(0, Camera.CFrame.LookVector.Y * Config.FlySpeed, 0)
                   else
-                      bv.Velocity = Vector3.new(0, 0.1, 0)
+                      bv.Velocity = Vector3.new(0, 0, 0)
                   end
                   task.wait()
               end
@@ -127,7 +124,7 @@ PlayerTab:CreateSlider({
    CurrentValue = 50,
    Callback = function(v) 
        Config.FlySpeed = v 
-       Player.Character.Humanoid.WalkSpeed = v
+       if Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = v end
    end,
 })
 
@@ -137,15 +134,14 @@ PlayerTab:CreateToggle({
    Callback = function(v) Config.InfJump = v end,
 })
 
-UserInputService.JumpRequest:Connect(function()
+game:GetService("UserInputService").JumpRequest:Connect(function()
     if Config.InfJump then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping") end
 end)
 
--- ВКЛАДКА VISUALS
+-- ВКЛАДКА ВИЗУАЛЫ
 local VisualTab = Window:CreateTab("Визуалы", 4483362458)
-
 VisualTab:CreateButton({
-   Name = "ESP: Подсветка игроков",
+   Name = "Включить ESP (Highlight)",
    Callback = function()
       for _, v in pairs(game.Players:GetPlayers()) do
           if v ~= Player and v.Character then
@@ -157,4 +153,4 @@ VisualTab:CreateButton({
    end,
 })
 
-Rayfield:Notify({Title = "CITRUS HUB", Content = "Скрипт полностью готов к доминации!", Duration = 5})
+Rayfield:Notify({Title = "CITRUS HUB", Content = "Elite Silent Aim запущен!", Duration = 5})
